@@ -379,6 +379,16 @@ class submit(SubCommand):
             msg += "\nIf you really need it write a mail to %s explaining your use case." % FEEDBACKMAIL
             self.logger.warning("%sWARNING%s: %s" % (colors.RED, colors.NORMAL, msg))
 
+        if crab_plugin_name.upper() == 'PRIVATEMC':
+            # since server only knows about eventsPerLumi,
+            # use lumisPerFile (with default = 1) to set eventsPerLumi
+            lumisPerFile = getattr(self.configuration.Data, 'lumisPerFile', 1)
+            eventsPerFile = self.configuration.Data.unitsPerJob
+            setattr(self.configuration.JobType, 'eventsPerLumi', eventsPerFile//lumisPerFile)
+            # must prevent an unknown parameter to be added to the PUT call to server
+            if hasattr(self.configuration.Data, 'lumisPerFile'):
+                delattr(self.configuration.Data, 'lumisPerFile')
+
         return True, "Valid configuration"
 
 
@@ -417,7 +427,7 @@ class submit(SubCommand):
         try:
             #tmpDir = tempfile.mkdtemp()
             #self.logger.info('Created temporary directory for dry run sandbox in %s' % tmpDir)
-            self.logger.info('Execute rest run in local sub-directory of %s', projDir)
+            self.logger.info('Execute test run in local sub-directory of %s', projDir)
             os.chdir(os.path.join(projDir, 'local'))
             #downloadFromS3(crabserver=self.crabserver, filepath=os.path.join(tmpDir, 'dry-run-sandbox.tar.gz'),
             #               objecttype='runtimefiles', taskname=uniquerequestname, logger=self.logger)
@@ -545,8 +555,8 @@ def setCMSRunAnalysisOpts(events=10):
     Parse the job ad to obtain the arguments that were passed to condor.
     """
 
-    with open('JobArgs-1.json', 'r') as f:
-        args = json.load(f)
+    with open('input_args.json', 'r') as f:  # this file contains args for all jobs
+        args = json.load(f)[0]               # pick job #1
     args.update({'CRAB_Id': '0', 'firstEvent': '1', 'lastEvent': str(int(events) + 1)})
     with open('DryRunJobArg.json', 'w') as f:
         json.dump(args, f)
