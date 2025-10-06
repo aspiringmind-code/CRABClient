@@ -130,13 +130,14 @@ class resubmit(SubCommand):
                 jobStatusDict[jobId] = jobStatus
 
         failedJobStatus = 'failed'
+        heldJobStatus = 'held'
 
         possibleToResubmitJobIds = []
         for jobStatus, jobId in jobList:
-            if jobStatus == failedJobStatus and consider(jobId):
+            if (jobStatus == failedJobStatus or jobStatus == heldJobStatus) and consider(jobId):
                 possibleToResubmitJobIds.append(jobId)
 
-        allowedJobStates = [failedJobStatus]
+        allowedJobStates = [failedJobStatus, heldJobStatus]
         if self.jobids:
             # Automatic splitting does not work with lists... probe- and
             # tail-job ids have a '-' in them, so re-split the joblist.
@@ -151,15 +152,15 @@ class resubmit(SubCommand):
                     possibleAndWantedJobIds = list(set(possibleToResubmitJobIds) & set(self.jobids))
                     notPossibleAndWantedJobIds = list(set(self.jobids) - set(possibleAndWantedJobIds))
                     msg = "Not possible to resubmit the following jobs:\n%s\n" % notPossibleAndWantedJobIds
-                    msg += "Only jobs in status %s can be resubmitted. " % failedJobStatus
+                    msg += "Only jobs in status %s and %s can be resubmitted. " % (failedJobStatus, heldJobStatus)
                     raise ConfigurationException(msg)
             return self.jobids
         else:
-            msg = "Requesting resubmission of failed jobs in task %s" % (self.cachedinfo['RequestName'])
+            msg = "Requesting resubmission of failed and held jobs in task %s" % (self.cachedinfo['RequestName'])
             self.logger.debug(msg)
 
             if not possibleToResubmitJobIds:
-                msg = "Found no jobs to resubmit. Only jobs in status %s can be resubmitted. " % failedJobStatus
+                msg = "Found no jobs to resubmit. Only jobs in status %s and %s can be resubmitted. " % (failedJobStatus, heldJobStatus)
                 raise ConfigurationException(msg)
 
             return possibleToResubmitJobIds
